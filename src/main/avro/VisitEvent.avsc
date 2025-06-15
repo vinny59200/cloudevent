@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "VisitEvent",
+  "namespace": "com.vv.spring_cloudevents_kafka_avro",
+  "fields": [
+    { "name": "location", "type": "string" },
+    { "name": "timestamp", "type": "string" }
+  ]
+}
