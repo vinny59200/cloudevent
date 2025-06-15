@@ -41,6 +41,12 @@ Or using the compiled JAR:
 java -jar target/your-app-name.jar
 ```
 
+Launch a production message through the REST API:
+```bash
+curl --request POST --url 'http://localhost:9090/visits?location=LilleZoo'
+```
+
+
 This will:
 
 - Produce a CloudEvent (e.g., a sightseeing visit to Lille Zoo)
