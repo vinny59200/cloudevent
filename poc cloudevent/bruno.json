@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "poc cloudevent",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

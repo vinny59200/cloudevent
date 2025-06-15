@@ -1,0 +1,15 @@
+meta {
+  name: POST cloud event
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:9090/visits?location=Meert
+  body: none
+  auth: inherit
+}
+
+params:query {
+  location: Meert
+}
