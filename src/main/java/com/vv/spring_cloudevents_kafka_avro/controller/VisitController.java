@@ -1,66 +1,66 @@
 package com.vv.spring_cloudevents_kafka_avro.controller;
 
 import com.vv.spring_cloudevents_kafka_avro.VisitEvent;
-import io.cloudevents.CloudEvent;
-import io.cloudevents.core.builder.CloudEventBuilder;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/visits")
+@RequestMapping( "/visits" )
 public class VisitController {
 
-    private final KafkaTemplate<String, CloudEvent> kafkaTemplate;
-    private final String topic;
+    private final KafkaTemplate<String, VisitEvent> kafkaTemplate;
+    private final String                            topic;
 
-    public VisitController(KafkaTemplate<String, CloudEvent> kafkaTemplate,
-                           @Value("${app.kafka.topic}") String topic) {
+    public VisitController( KafkaTemplate<String, VisitEvent> kafkaTemplate,
+                            @Value( "${app.kafka.topic}" ) String topic ) {
         this.kafkaTemplate = kafkaTemplate;
         this.topic = topic;
     }
 
     @PostMapping
-    public String sendVisit(@RequestParam String location) throws IOException {
-        // 1. Build the Avro payload
+    public String sendVisit( @RequestParam String location ) {
+        // 1. Build the Avro payload (VisitEvent must be a generated Avro class)
         VisitEvent visit = VisitEvent.newBuilder()
-                                     .setLocation(location)
-                                     .setTimestamp(OffsetDateTime.now().toString())
+                                     .setLocation( location )
+                                     .setTimestamp( OffsetDateTime.now()
+                                                                  .toString() )
                                      .build();
 
-        // 2. Serialize Avro to byte[]
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
-        DatumWriter<VisitEvent> writer = new SpecificDatumWriter<>(VisitEvent.class);
-        writer.write(visit, encoder);
-        encoder.flush();
-        out.close();
-        byte[] avroBytes = out.toByteArray();
+        // 2. Create CloudEvent metadata as headers
+        String id = UUID.randomUUID()
+                        .toString();
+        OffsetDateTime now = OffsetDateTime.now();
 
-        // 3. Wrap in a CloudEvent
-        CloudEvent cloudEvent = CloudEventBuilder.v1()
-                                                 .withId(UUID.randomUUID().toString())
-                                                 .withType("VisitEvent")
-                                                 .withSource(URI.create("http://localhost/visits"))
-                                                 .withDataContentType("application/avro")
-                                                 .withTime(OffsetDateTime.now())
-                                                 .withSubject("visit")
-                                                 .withData(avroBytes)
-                                                 .build();
+        ProducerRecord<String, VisitEvent> record = new ProducerRecord<>( topic, visit );
+        record.headers()
+              .add( "ce_id", id.getBytes( StandardCharsets.UTF_8 ) );
+        record.headers()
+              .add( "ce_type", "VisitEvent".getBytes( StandardCharsets.UTF_8 ) );
+        record.headers()
+              .add( "ce_source", "http://localhost/visits".getBytes( StandardCharsets.UTF_8 ) );
+        record.headers()
+              .add( "ce_specversion", "1.0".getBytes( StandardCharsets.UTF_8 ) );
+        record.headers()
+              .add( "ce_time", now.toString()
+                                  .getBytes( StandardCharsets.UTF_8 ) );
+        record.headers()
+              .add( "ce_subject", "visit".getBytes( StandardCharsets.UTF_8 ) );
+        record.headers()
+              .add( "ce_datacontenttype", "application/avro".getBytes( StandardCharsets.UTF_8 ) );
 
-        // 4. Send to Kafka
-        kafkaTemplate.send(topic, cloudEvent);
+        // 3. Send the record
+        kafkaTemplate.send( record );
 
         return "✅ Visit sent to Kafka: " + location;
     }
+
 }

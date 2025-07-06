@@ -19,16 +19,12 @@ services:
     environment:
       KAFKA_BROKER_ID: 101
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,DOCKER://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,DOCKER://kafka:29092
-
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,DOCKER://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,DOCKER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
-
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.0.0
@@ -50,7 +46,6 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
-
   create-topics:
     image: confluentinc/cp-kafka:7.0.0
     container_name: create-topics
@@ -70,3 +65,19 @@ services:
     working_dir: /root/confluent-streams/labs/using-ksql
     command: /bin/bash
     tty: true
+
+  spring-app:
+    image: my-spring-boot-app
+    container_name: spring-app
+    ports:
+      - 9090:9090
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      SPRING_APPLICATION_NAME: spring-cloudevents-kafka-avro
+      SERVER_PORT: 9090
+    depends_on:
+      - kafka
+      - schema-registry
+    networks:
+      - default
